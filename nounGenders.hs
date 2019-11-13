@@ -9,7 +9,17 @@ data Tree a =
   | Leaf a
 
 
+fmap2 f a = (fmap f) <$> a
+--sequence2 = sequence . fmap sequence
+
+removeEmpties = 
+
+parseWord ((gender:word):rest) = gender gen
+
 main = do
-  input <- T.lines <$> TIO.readFile "data.txt"
-  sequence (TIO.putStr <$> ((`T.append` "\n") <$> input))
+  input <- fmap2 T.words $ fmap T.lines (TIO.readFile "data.txt")
+--((fmap T.words) . T.lines) <$> TIO.readFile "data.txt"
+  putStr (show input)
+  --sequence2 (fmap2 TIO.putStr input)
+--((`T.append` "\n") <$> input))
   
