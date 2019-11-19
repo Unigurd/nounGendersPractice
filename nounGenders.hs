@@ -21,8 +21,8 @@ data Tree a =
 -- Converts T.Text to String and performs readEither
 -- dirty, but I couldn't find any way to do this in the docs.
 tReadEither :: Read a => T.Text -> T.Text -> Either T.Text a
-tReadEither leftVal showable = 
-  case readMaybe $ show showable of
+tReadEither leftVal text = 
+  case readMaybe $ T.unpack text of
     Just val -> Right val
     Nothing  -> Left leftVal
 
@@ -39,7 +39,7 @@ parseGender :: T.Text -> Either T.Text Gender
 parseGender "Der" = Right Der
 parseGender "Die" = Right Die
 parseGender "Das" = Right Das
-parseGender otherGender = Left ("Parse error in file: invalid gender" `T.append` otherGender)
+parseGender otherGender = Left ("Parse error in file: invalid gender: " `T.append` otherGender)
 
 -- Little ugly function to ease >>= in parseWord
 createWord word value growth gender = 
@@ -48,21 +48,24 @@ createWord word value growth gender =
 parseWord [genderStr, word] = (createWord word 0 Lin) <$> parseGender genderStr
 parseWord [genderStr, word, valueStr] = do
   gender <- parseGender genderStr 
-  value  <- tReadEither ("Parse error in file: invalid number: " `T.append` valueStr) valueStr
+  value  <- tReadEither ("Parse error in file: invalid value number: " `T.append` valueStr) valueStr
   return $ createWord word value Lin gender
 parseWord [genderStr, word, valueStr, growthStr] = do
   gender <- parseGender genderStr 
   value  <- tReadEither ("Parse error in file: invalid value number: "  `T.append` valueStr) valueStr
   growth <- parseGrowth ("Parse error in file: invalid growth number: " `T.append` growthStr) growthStr
-  return $ createWord word value Lin gender
+  return $ createWord word value growth gender
 parseWord _ = Left "Parse error in file: Haven't bothered to write good enough error messages for me to tell you what"
 
 
+a = tReadEither "niks" "3" :: Either T.Text Integer
 
 main = do
   fileText <- TIO.readFile "data.txt"
-  let input = sequence $ fmap parseWord $ removeEmpties  $ removeComments <$> T.words <$> (T.lines fileText)
---((fmap T.words) . T.lines) <$> TIO.readFile "data.txt"
+  let input = sequence 
+            $ fmap parseWord 
+            $ removeEmpties 
+            $ removeComments 
+           <$> T.words 
+           <$> (T.lines fileText)
   putStrLn (show input)
-  --sequence2 (fmap2 TIO.putStr input)
---((`T.append` "\n") <$> input))
