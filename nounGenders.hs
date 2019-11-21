@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# Language ViewPatterns #-}
+import Prelude hiding (Word)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Numeric.Natural
 import Text.Read
 import Data.List.NonEmpty
+import Control.Monad.Fix
 
 data Gender = Der | Die | Das deriving Show
 data Growth = Lin | Exp Natural deriving Show
@@ -16,8 +18,12 @@ data Word = Word {word :: T.Text,
                   deriving Show
 
 data Tree a = 
-  Branch (Tree a) (Tree a) a -- invariant: the a is the sum of the a's in the subtrees
+  Branch {left :: Tree a,
+          branchVal :: a, -- invariant: the a is the sum of the a's in the subtrees
+          right :: Tree a}
   | Leaf a
+
+
 
 -- Converts T.Text to String and performs readEither
 -- dirty, but I couldn't find any way to do this in the docs.
@@ -73,11 +79,30 @@ parseInput input =
              <$> T.words 
              <$> (T.lines input))
 
+buildTree :: NonEmpty Word -> [Tree Word]
+buildTree nonEmptyList = fix (\rec -> pairUp) leafList
+  where
+    leafList = toList (Leaf <$> nonEmptyList)
+    -- I don't like that maximum doesn't check non-emptyness statically
+    maxVal = maximum $ values nonEmptyList
+    pairUp :: [Word] -> [Word]
+    pairUp (a:b:rest) = (Branch {left=a,
+                                 branchVal=((branchVal a) + (branchVal b)),
+                                 right=b})
+                         :(pairUp rest)
+    pairUp [a]        = [a]
+    pairUp []         = []
+
+values :: Functor f => f Word -> f Natural
+values = fmap value
 
 main = do
   fileText <- TIO.readFile "data.txt"
-  let input = parseInput fileText
-  putStrLn (show input)
+  let maxVal = do
+      input <- parseInput fileText
+      let maxVal = maximum $ values input -- I don't like that maximum doesn't check non-emptyness statically
+      return maxVal
+  putStrLn (show maxVal)
 
 
 
