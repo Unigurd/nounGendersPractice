@@ -65,15 +65,18 @@ parseWord (genderStr :| [word, valueStr, growthStr]) = do
 parseWord _ = Left "Parse error in file: Haven't bothered to write good enough error messages for me to tell you what"
 
 --largestValue = foldl (\acc elm -> if value elm > acc then value elm else acc)
+parseInput input = 
+  traverse parseWord 
+             =<< (nonEmptyEither "Data file was empty"  
+              $ removeEmpties 
+              $ removeComments 
+             <$> T.words 
+             <$> (T.lines input))
+
 
 main = do
   fileText <- TIO.readFile "data.txt"
-  let input = traverse parseWord 
-           =<< (nonEmptyEither "Data file was empty"  
-            $ removeEmpties 
-            $ removeComments 
-           <$> T.words 
-           <$> (T.lines fileText))
+  let input = parseInput fileText
   putStrLn (show input)
 
 
