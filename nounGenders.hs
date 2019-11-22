@@ -24,8 +24,8 @@ data Tree a =
   | Leaf a Natural
   deriving Show
 
-branchVal (Leaf _ val) = val
-branchVal (Branch _ val _) = val
+treeVal (Leaf _ val) = val
+treeVal (Branch _ val _) = val
 
 
 -- Converts T.Text to String and performs readEither
@@ -83,15 +83,15 @@ parseInput input =
              <$> (T.lines input))
 
 -- maxVal list >= value x for all x in list
-leafify list = fmap (\x -> (Leaf x (maxVal list - value x ))) list
+leafify list = fmap (\x -> (Leaf x (maxVal list - value x + 1 ))) list
 
 -- I don't like that maximum doesn't check non-emptyness statically
 maxVal = maximum . values
 
 pairUp :: NonEmpty (Tree Word) -> NonEmpty (Tree Word)
-pairUp (a:|[b]) = (Branch a ((branchVal a) + (branchVal b)) b):|[]
+pairUp (a:|[b]) = (Branch a ((treeVal a) + (treeVal b)) b):|[]
 pairUp (a:|(b:restHead:restTail)) = 
-  (Branch a ((branchVal a) + (branchVal b)) b) `cons` (pairUp (restHead:|restTail))
+  (Branch a ((treeVal a) + (treeVal b)) b) `cons` (pairUp (restHead:|restTail))
 pairUp (a:|[])        = a:|[]
 
 buildTree :: NonEmpty (Tree Word) -> Tree Word
@@ -101,14 +101,24 @@ buildTree list         = buildTree $ pairUp list
 values :: Functor f => f Word -> f Natural
 values = fmap value
 
+
+pickWord :: Tree a -> Natural -> a
+pickWord (Leaf word _) _ = word
+pickWord (Branch left _ right) searchVal =
+  if searchVal <= treeVal left
+  then pickWord left searchVal
+  else pickWord right searchVal
+
 main = do
   fileText <- TIO.readFile "data.txt"
-  let treeList = do
+  let tree = do
       input <- parseInput fileText
       let leaves = leafify input 
-      return $ buildTree leaves
+      let tree = buildTree leaves
+      return $ pickWord tree 9
+      --return tree
       
-  putStrLn (show treeList)
+  putStrLn (show tree)
 
 
 
