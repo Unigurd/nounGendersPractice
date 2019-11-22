@@ -6,7 +6,7 @@ import qualified Data.Text.IO as TIO
 import Numeric.Natural
 import Text.Read
 import Data.List.NonEmpty
-import Control.Monad.Fix
+import Data.Function
 
 data Gender = Der | Die | Das deriving Show
 data Growth = Lin | Exp Natural deriving Show
@@ -17,12 +17,15 @@ data Word = Word {word :: T.Text,
                   growth :: Growth} 
                   deriving Show
 
-data Tree a = 
-  Branch {left :: Tree a,
-          branchVal :: a, -- invariant: the a is the sum of the a's in the subtrees
-          right :: Tree a}
-  | Leaf a
 
+
+data Tree a = 
+  Branch (Tree a) Natural (Tree a)
+  | Leaf a Natural
+  deriving Show
+
+branchVal (Leaf _ val) = val
+branchVal (Branch _ val _) = val
 
 
 -- Converts T.Text to String and performs readEither
@@ -79,30 +82,33 @@ parseInput input =
              <$> T.words 
              <$> (T.lines input))
 
-buildTree :: NonEmpty Word -> [Tree Word]
-buildTree nonEmptyList = fix (\rec -> pairUp) leafList
-  where
-    leafList = toList (Leaf <$> nonEmptyList)
-    -- I don't like that maximum doesn't check non-emptyness statically
-    maxVal = maximum $ values nonEmptyList
-    pairUp :: [Word] -> [Word]
-    pairUp (a:b:rest) = (Branch {left=a,
-                                 branchVal=((branchVal a) + (branchVal b)),
-                                 right=b})
-                         :(pairUp rest)
-    pairUp [a]        = [a]
-    pairUp []         = []
+-- maxVal list >= value x for all x in list
+leafify list = fmap (\x -> (Leaf x (maxVal list - value x ))) list
+
+-- I don't like that maximum doesn't check non-emptyness statically
+maxVal = maximum . values
+
+pairUp :: NonEmpty (Tree Word) -> NonEmpty (Tree Word)
+pairUp (a:|[b]) = (Branch a ((branchVal a) + (branchVal b)) b):|[]
+pairUp (a:|(b:restHead:restTail)) = 
+  (Branch a ((branchVal a) + (branchVal b)) b) `cons` (pairUp (restHead:|restTail))
+pairUp (a:|[])        = a:|[]
+
+buildTree :: NonEmpty (Tree Word) -> Tree Word
+buildTree (result:|[]) = result
+buildTree list         = buildTree $ pairUp list
 
 values :: Functor f => f Word -> f Natural
 values = fmap value
 
 main = do
   fileText <- TIO.readFile "data.txt"
-  let maxVal = do
+  let treeList = do
       input <- parseInput fileText
-      let maxVal = maximum $ values input -- I don't like that maximum doesn't check non-emptyness statically
-      return maxVal
-  putStrLn (show maxVal)
+      let leaves = leafify input 
+      return $ buildTree leaves
+      
+  putStrLn (show treeList)
 
 
 
