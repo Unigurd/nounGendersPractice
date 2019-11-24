@@ -8,52 +8,10 @@ import Text.Read
 import Data.List.NonEmpty as NE
 import Data.Function
 import System.Random
+import RandomNatural
 
--- Copied from 
--- https://hackage.haskell.org/package/random-1.1/docs/src/System.Random.html#randomIvalIntegral
--- The two integer functions below take an [inclusive,inclusive] range.
-randomIvalIntegral :: (RandomGen g, Integral a) => (a, a) -> g -> (a, g)
-randomIvalIntegral (l,h) = randomIvalInteger (toInteger l, toInteger h)
-
-randomIvalInteger :: (RandomGen g, Num a) => (Integer, Integer) -> g -> (a, g)
-randomIvalInteger (l,h) rng
- | l > h     = randomIvalInteger (h,l) rng
- | otherwise = case (f 1 0 rng) of (v, rng') -> (fromInteger (l + v `mod` k), rng')
-     where
-       (genlo, genhi) = genRange rng
-       b = fromIntegral genhi - fromIntegral genlo + 1
-
-       -- Probabilities of the most likely and least likely result
-       -- will differ at most by a factor of (1 +- 1/q).  Assuming the RandomGen
-       -- is uniform, of course
-
-       -- On average, log q / log b more random values will be generated
-       -- than the minimum
-       q = 1000
-       k = h - l + 1
-       magtgt = k * q
-
-       -- generate random values until we exceed the target magnitude 
-       f mag v g | mag >= magtgt = (v, g)
-                 | otherwise = v' `seq`f (mag*b) v' g' where
-                        (x,g') = next g
-                        v' = (v * b + (fromIntegral x - fromIntegral genlo))
-
-integerToNatural :: Integer -> Natural
-integerToNatural i
-  | i < 0 = fromInteger (abs i) - 1
-  | True  = fromInteger i
-integralToNatural = integerToNatural . toInteger
-
-instance Random Natural where
-  randomR (a,b) g = (nat,g') where
-    (int,g') = randomIvalIntegral (a::Natural, b) g
-    nat = integralToNatural int
-    
-  random = randomR (0, (integralToNatural (maxBound::Int)))
-
-data Gender = Der | Die | Das deriving Show
 data Growth = Lin | Exp Natural deriving Show
+data Gender = Der | Die | Das deriving Show
 
 data Word = Word {word :: T.Text,
                   gender :: Gender,
@@ -157,14 +115,28 @@ pickWord (Branch left _ right) searchVal =
   then pickWord left searchVal
   else pickWord right searchVal
 
+compareAnswer answer = any (==answer)
+
+play :: RandomGen g => Tree Word -> g -> IO ()
+play tree randGen = do
+  let (index,_) = randomR (1, treeVal tree) randGen
+  let quizWord = pickWord tree $ index
+  let wordStr = word quizWord
+  TIO.putStrLn wordStr
+  rawAnswer <- readLn
+  let answer = T.toLower rawAnswer
+  TIO.putStrLn 
+    (if compareAnswer answer (T.toLower . T.pack . show <$> [Der, Die, Das])
+     then "Correct!"
+     else T.append "Wrong: " (T.pack $ show $ gender quizWord))
+  
+
 main = do
   fileText <- TIO.readFile "data.txt"
   stdGen <- getStdGen
-  let comp = do
+  let tree = do
       input <- parseInput fileText
       let leaves = leafify input 
       let tree = buildTree leaves
-      let (index,_) = randomR (1, treeVal tree) stdGen
-      let word = pickWord tree $ index
-      return index
-  putStrLn (show comp)
+      return tree
+  either TIO.putStrLn (`play` stdGen) tree
