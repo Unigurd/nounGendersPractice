@@ -115,6 +115,7 @@ pickWord (Branch left _ right) searchVal =
   then pickWord left searchVal
   else pickWord right searchVal
 
+compareAnswer :: T.Text -> [T.Text] -> Bool
 compareAnswer answer = any (==answer)
 
 play :: RandomGen g => Tree Word -> g -> IO ()
@@ -123,10 +124,10 @@ play tree randGen = do
   let quizWord = pickWord tree $ index
   let wordStr = word quizWord
   TIO.putStrLn wordStr
-  rawAnswer <- readLn
+  rawAnswer <- TIO.getLine
   let answer = T.toLower rawAnswer
   TIO.putStrLn 
-    (if compareAnswer answer (T.toLower . T.pack . show <$> [Der, Die, Das])
+    (if compareAnswer answer ((T.toLower . T.pack . show) <$> [Der, Die, Das])
      then "Correct!"
      else T.append "Wrong: " (T.pack $ show $ gender quizWord))
   
