@@ -11,7 +11,7 @@ import System.Random
 import RandomNatural
 
 data Growth = Lin | Exp Natural deriving Show
-data Gender = Der | Die | Das deriving Show
+data Gender = Der | Die | Das deriving (Show, Eq)
 
 data Word = Word {word :: T.Text,
                   gender :: Gender,
@@ -115,8 +115,13 @@ pickWord (Branch left _ right) searchVal =
   then pickWord left searchVal
   else pickWord right searchVal
 
-compareAnswer :: T.Text -> [T.Text] -> Bool
-compareAnswer answer = any (==answer)
+parseAnswer :: T.Text -> Either T.Text Gender
+parseAnswer (T.toLower -> "der") = Right Der
+parseAnswer (T.toLower -> "die") = Right Die
+parseAnswer (T.toLower -> "das") = Right Das
+parseAnswer answer               = Left $ T.append "Could not understand " answer
+
+tShow = show . T.pack
 
 play :: RandomGen g => Tree Word -> g -> IO ()
 play tree randGen = do
@@ -127,10 +132,10 @@ play tree randGen = do
   rawAnswer <- TIO.getLine
   let answer = T.toLower rawAnswer
   TIO.putStrLn 
-    (if compareAnswer answer ((T.toLower . T.pack . show) <$> [Der, Die, Das])
-     then "Correct!"
-     else T.append "Wrong: " (T.pack $ show $ gender quizWord))
-  
+    (case (== gender quizWord) <$> parseAnswer answer of
+       Left errMsg -> errMsg 
+       Right True  -> "Correct"
+       Right False -> "Wrong! >:(")
 
 main = do
   fileText <- TIO.readFile "data.txt"
