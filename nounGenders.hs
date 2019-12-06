@@ -123,19 +123,33 @@ parseAnswer answer               = Left $ T.append "Could not understand " answe
 
 tShow = show . T.pack
 
-play :: RandomGen g => Tree Word -> g -> IO ()
-play tree randGen = do
-  let (index,_) = randomR (1, treeVal tree) randGen
-  let quizWord = pickWord tree $ index
-  let wordStr = word quizWord
+randomWord tree randGen = (quizWord, newGen)
+  where
+    (index,newGen) = randomR (1, treeVal tree) randGen
+    quizWord = pickWord tree $ index
+
+
+
+play :: RandomGen g => Tree Word -> g -> (IO (), g)
+play tree randGen = 
+  let (quizWord, newGen) = randomWord tree randGen
+  in let wordStr = word quizWord
+  in (do
   TIO.putStrLn wordStr
-  rawAnswer <- TIO.getLine
-  let answer = T.toLower rawAnswer
+  answer <- TIO.getLine
   TIO.putStrLn 
     (case (== gender quizWord) <$> parseAnswer answer of
        Left errMsg -> errMsg 
        Right True  -> "Correct"
-       Right False -> "Wrong! >:(")
+       Right False -> "Wrong! >:("),
+   newGen)
+
+quickDirty :: RandomGen g => Tree Word -> g -> [IO ()]
+quickDirty tree randGen =
+  result:(quickDirty tree newGen)
+  where
+    (result, newGen) = play tree randGen 
+--(either TIO.putStrLn (fst . (`play` stdGen)) tree):
 
 main = do
   fileText <- TIO.readFile "data.txt"
@@ -145,4 +159,6 @@ main = do
       let leaves = leafify input 
       let tree = buildTree leaves
       return tree
-  either TIO.putStrLn (`play` stdGen) tree
+  
+  either TIO.putStrLn (fmap (const ()) . sequence . (`quickDirty` stdGen)) tree
+
