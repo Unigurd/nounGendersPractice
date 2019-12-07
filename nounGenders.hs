@@ -112,8 +112,8 @@ pickWord :: Tree a -> Natural -> a
 pickWord (Leaf word _) _ = word
 pickWord (Branch left _ right) searchVal =
   if searchVal <= treeVal left
-  then pickWord left searchVal
-  else pickWord right searchVal
+  then pickWord left (searchVal)
+  else pickWord right (searchVal - treeVal left)
 
 parseAnswer :: T.Text -> Either T.Text Gender
 parseAnswer (T.toLower -> "der") = Right Der
@@ -121,14 +121,23 @@ parseAnswer (T.toLower -> "die") = Right Die
 parseAnswer (T.toLower -> "das") = Right Das
 parseAnswer answer               = Left $ T.append "Could not understand " answer
 
-tShow = show . T.pack
+tShow :: Show a => a -> T.Text
+tShow = T.pack . show
 
 randomWord tree randGen = (quizWord, newGen)
   where
     (index,newGen) = randomR (1, treeVal tree) randGen
     quizWord = pickWord tree $ index
 
-
+format :: Tree Word -> T.Text
+format = T.unlines . help ""
+  where
+    help spaces (Branch l n r) = 
+      spaces `T.append` (tShow n) 
+             : ((help newSpaces l) ++ (help newSpaces r))
+        where newSpaces = T.cons ' ' spaces
+    help spaces (Leaf w n) =
+      [spaces `T.append` T.unwords [tShow n, (tShow $ gender w), word w]]
 
 play :: RandomGen g => Tree Word -> g -> (IO (), g)
 play tree randGen = 
@@ -151,6 +160,8 @@ quickDirty tree randGen =
     (result, newGen) = play tree randGen 
 --(either TIO.putStrLn (fst . (`play` stdGen)) tree):
 
+makeTree input = buildTree <$> leafify <$> parseInput input
+
 main = do
   fileText <- TIO.readFile "data.txt"
   stdGen <- getStdGen
@@ -160,5 +171,5 @@ main = do
       let tree = buildTree leaves
       return tree
   
+  TIO.putStrLn(tShow tree)
   either TIO.putStrLn (fmap (const ()) . sequence . (`quickDirty` stdGen)) tree
-

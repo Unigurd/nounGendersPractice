@@ -1,9 +1,8 @@
 Das Mädchen
 Der Beweis
 Die Polizei
-Das Gesicht 3
+Das Gesicht
 
-Das Publikum 5 // Deette er en kommentar
-Die Woche 7 2
-Der Eindruck 5 2
-Der EinDruck 5 3
+Das Publikum
+Die Woche
+Der Eindruck
