@@ -9,6 +9,7 @@ import Data.List.NonEmpty as NE
 import Data.Function
 import System.Random
 import RandomNatural
+import Data.Char as C
 
 data Growth = Lin | Exp Natural deriving Show
 data Gender = Der | Die | Das deriving (Show, Eq)
@@ -45,14 +46,19 @@ removeEmpties = foldr (\elm acc -> case (nonEmpty elm) of
                                      Nothing          -> acc) 
                       []
 
+upperFirst (T.uncons -> Just (first, rest)) = (C.toUpper first) `T.cons` rest
+upperFirst emptyStr                         = emptyStr
+
+capitalizeWord = upperFirst . T.toLower
+
 removeComments :: [T.Text] -> [T.Text]
 removeComments = foldr (\elm acc -> if (T.take 2 elm == "//") then [] else elm:acc) []
 
-parseGender :: T.Text -> Either T.Text Gender
-parseGender "Der" = Right Der
-parseGender "Die" = Right Die
-parseGender "Das" = Right Das
-parseGender otherGender = Left ("Parse error in file: invalid gender: " `T.append` otherGender)
+parseGender :: T.Text -> T.Text -> Either T.Text Gender
+parseGender _ (T.toLower -> "der") = Right Der
+parseGender _ (T.toLower -> "die") = Right Die
+parseGender _ (T.toLower -> "das") = Right Das
+parseGender errMsg otherGender = Left (errMsg `T.append` otherGender)
 
 nonEmptyEither _      (nonEmpty -> Just nonE) = Right nonE
 nonEmptyEither errMsg (nonEmpty -> Nothing)   = Left errMsg
@@ -61,16 +67,16 @@ nonEmptyEither errMsg (nonEmpty -> Nothing)   = Left errMsg
 createWord word value growth gender = 
   Word {word=word, gender=gender, value=value, growth=growth}
 
-parseWord (genderStr :| [word]) = (createWord word 0 Lin) <$> parseGender genderStr
+parseWord (genderStr :| [word]) = (createWord (capitalizeWord word) 0 Lin) <$> parseGender "Parse error in file: invalid gender: " genderStr
 parseWord (genderStr :| [word, valueStr]) = do
-  gender <- parseGender genderStr 
+  gender <- parseGender "Parse error in file: invalid gender: " genderStr 
   value  <- tReadEither ("Parse error in file: invalid value number: " `T.append` valueStr) valueStr
-  return $ createWord word value Lin gender
+  return $ createWord (capitalizeWord word) value Lin gender
 parseWord (genderStr :| [word, valueStr, growthStr]) = do
-  gender <- parseGender genderStr 
+  gender <- parseGender "Parse error in file: invalid gender: " genderStr 
   value  <- tReadEither ("Parse error in file: invalid value number: "  `T.append` valueStr) valueStr
   growth <- parseGrowth ("Parse error in file: invalid growth number: " `T.append` growthStr) growthStr
-  return $ createWord word value growth gender
+  return $ createWord (capitalizeWord word) value growth gender
 parseWord _ = Left "Parse error in file: Haven't bothered to write good enough error messages for me to tell you what"
 
 --largestValue = foldl (\acc elm -> if value elm > acc then value elm else acc)
@@ -115,11 +121,6 @@ pickWord (Branch left _ right) searchVal =
   then pickWord left (searchVal)
   else pickWord right (searchVal - treeVal left)
 
-parseAnswer :: T.Text -> Either T.Text Gender
-parseAnswer (T.toLower -> "der") = Right Der
-parseAnswer (T.toLower -> "die") = Right Die
-parseAnswer (T.toLower -> "das") = Right Das
-parseAnswer answer               = Left $ T.append "Could not understand " answer
 
 tShow :: Show a => a -> T.Text
 tShow = T.pack . show
@@ -147,7 +148,7 @@ play tree randGen =
   TIO.putStrLn wordStr
   answer <- TIO.getLine
   TIO.putStrLn 
-    (case (== gender quizWord) <$> parseAnswer answer of
+    (case (== gender quizWord) <$> parseGender "Could not understand " answer of
        Left errMsg -> errMsg 
        Right True  -> "Correct"
        Right False -> "Wrong! >:("),
@@ -171,5 +172,4 @@ main = do
       let tree = buildTree leaves
       return tree
   
-  TIO.putStrLn(tShow tree)
   either TIO.putStrLn (fmap (const ()) . sequence . (`quickDirty` stdGen)) tree
