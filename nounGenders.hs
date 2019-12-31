@@ -196,6 +196,40 @@ play tree randGen =
        Right False -> "Wrong! >:("),
    newGen)
 
+--playRound RandomGen g => Tree Word -> g -> (IO (), g)
+--playRound tree randGen = do
+--  TIO.putStrLn wordStr
+--  where
+--    (quizWord, newGen) = randomWord tree randGen
+--    wordStr = word quizWord
+
+parseAnswer (toLower -> 'j') = Right Der
+parseAnswer (toLower -> 'k') = Right Die
+parseAnswer (toLower -> 'l') = Right Das
+parseAnswer _ = Left "Did not understand answer"
+
+shouldContinue 'q' = False
+shouldContinue  n  = True
+
+iterate2 :: (b -> (a,b)) -> b -> NonEmpty a
+iterate2 f x = fmap fst $ NE.iterate (\(a,b) -> f b) $ f x
+
+randomWords :: RandomGen g => Tree Word -> g -> NonEmpty Word
+randomWords tree stdGen = iterate2 (randomWord tree) stdGen
+
+answers = Prelude.takeWhile ((>>=) shouldContinue) $ Prelude.repeat getChar
+
+something (io:ios) gender = do
+  chr <- io
+  let guessGender = parseAnswer chr
+  if guessGender == gender
+  then return ()
+  else something ios (word:words)
+ 
+--summa ios words@(w:_) = do
+--  TIO.putStrLn $ word w
+--  something ios $ gender w
+
 -- Quick and dirty function to play more rounds of the game.
 -- Playing the game will be changed
 quickDirty :: RandomGen g => Tree Word -> g -> [IO ()]
@@ -212,10 +246,8 @@ makeTree input = buildTree <$> leafify <$> parseInput input
 main = do
   fileText <- TIO.readFile "data.txt"
   stdGen <- getStdGen
-  let tree = do
-      input <- parseInput fileText
-      let leaves = leafify input 
-      let tree = buildTree leaves
-      return tree
-  
+  let tree = makeTree fileText
   either TIO.putStrLn (fmap (const ()) . sequence . (`quickDirty` stdGen)) tree
+
+
+right (Right a) = a
