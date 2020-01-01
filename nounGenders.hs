@@ -38,6 +38,9 @@ data Tree a =
   | Leaf a Natural
   deriving Show
 
+
+data PlayState = Play | Stop
+
 -- Returns the topmost Natural of a tree.
 treeVal (Leaf _ val) = val
 treeVal (Branch _ val _) = val
@@ -181,28 +184,6 @@ format = T.unlines . help ""
     help spaces (Leaf w n) =
       [spaces `T.append` T.unwords [tShow n, (tShow $ gender w), word w]]
 
--- Plays a single round of the game, including reading from and writing to the screen.
-play :: RandomGen g => Tree Word -> g -> (IO (), g)
-play tree randGen = 
-  let (quizWord, newGen) = randomWord tree randGen
-  in let wordStr = word quizWord
-  in (do
-  TIO.putStrLn wordStr
-  answer <- TIO.getLine
-  TIO.putStrLn 
-    (case (== gender quizWord) <$> parseGender "Could not understand " answer of
-       Left errMsg -> errMsg 
-       Right True  -> "Correct"
-       Right False -> "Wrong! >:("),
-   newGen)
-
---playRound RandomGen g => Tree Word -> g -> (IO (), g)
---playRound tree randGen = do
---  TIO.putStrLn wordStr
---  where
---    (quizWord, newGen) = randomWord tree randGen
---    wordStr = word quizWord
-
 parseAnswer (toLower -> 'j') = Right Der
 parseAnswer (toLower -> 'k') = Right Die
 parseAnswer (toLower -> 'l') = Right Das
@@ -211,43 +192,67 @@ parseAnswer _ = Left "Did not understand answer"
 shouldContinue 'q' = False
 shouldContinue  n  = True
 
-iterate2 :: (b -> (a,b)) -> b -> NonEmpty a
-iterate2 f x = fmap fst $ NE.iterate (\(a,b) -> f b) $ f x
+getAnswers realGender = exitTest realGender
+  where 
+    exitTest realGender = do
+      rawAnswer <- getChar
+      case rawAnswer of
+        'q' -> return Stop
+        _  -> correctnessTest realGender $ parseAnswer rawAnswer
 
-randomWords :: RandomGen g => Tree Word -> g -> NonEmpty Word
-randomWords tree stdGen = iterate2 (randomWord tree) stdGen
+    correctnessTest realGender (Right answer) =
+      if answer == realGender
+      then return Play
+      else getAnswers realGender
+    correctnessTest realGender (Left _) =
+      exitTest realGender
 
-answers = Prelude.takeWhile ((>>=) shouldContinue) $ Prelude.repeat getChar
+playRound :: Word -> IO PlayState 
+playRound wordToGuess = do
+  TIO.putStrLn $ word wordToGuess
+  getAnswers $ gender wordToGuess
 
-something (io:ios) gender = do
-  chr <- io
-  let guessGender = parseAnswer chr
-  if guessGender == gender
-  then return ()
-  else something ios (word:words)
- 
---summa ios words@(w:_) = do
---  TIO.putStrLn $ word w
---  something ios $ gender w
+play :: NonEmpty Word -> NonEmpty (IO PlayState)
+play = fmap playRound 
 
--- Quick and dirty function to play more rounds of the game.
--- Playing the game will be changed
-quickDirty :: RandomGen g => Tree Word -> g -> [IO ()]
-quickDirty tree randGen =
-  result:(quickDirty tree newGen)
-  where
-    (result, newGen) = play tree randGen 
---(either TIO.putStrLn (fst . (`play` stdGen)) tree):
+myIterate :: (b -> (a,b)) -> b -> NonEmpty a
+myIterate f x = fmap fst $ NE.iterate (\(a,b) -> f b) $ f x
+
+randomWords :: RandomGen g => g -> Tree Word -> NonEmpty Word
+randomWords stdGen tree = myIterate (randomWord tree) stdGen
 
 -- Makes an entire tree from raw input
 makeTree input = buildTree <$> leafify <$> parseInput input
+
+mySequence :: Monad m =>  (a -> Bool) -> [m a] -> m [a]
+mySequence _ [] = return []
+mySequence pred (a:as) = do
+  a2 <- a
+  if pred a2
+  then return []
+  else do
+    as2 <- mySequence pred as
+    return (a2:as2)
+
+mySequenceNE pred (a:|as) = do
+  a2 <- a
+  if pred a2
+  then return (a2:|[])
+  else do
+    as2 <- mySequence pred as
+    return (a2:|as2)
+
+shouldStop Stop = True
+shouldStop Play = False
 
 -- Good ol' main :)
 main = do
   fileText <- TIO.readFile "data.txt"
   stdGen <- getStdGen
   let tree = makeTree fileText
-  either TIO.putStrLn (fmap (const ()) . sequence . (`quickDirty` stdGen)) tree
+  -- fmap (const ()) is to change the type from IO PlayState to IO () to match putStrLn
+  either TIO.putStrLn (fmap (const ()) . mySequenceNE shouldStop . play . randomWords stdGen) tree
+
 
 
 right (Right a) = a
