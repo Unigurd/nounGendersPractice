@@ -210,7 +210,9 @@ getAnswers realGender = exitTest realGender
 playRound :: Word -> IO PlayState 
 playRound wordToGuess = do
   TIO.putStrLn $ word wordToGuess
-  getAnswers $ gender wordToGuess
+  playState <- getAnswers $ gender wordToGuess
+  TIO.putStrLn ""
+  return playState
 
 play :: NonEmpty Word -> NonEmpty (IO PlayState)
 play = fmap playRound 
