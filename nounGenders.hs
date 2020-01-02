@@ -1,5 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# Language OverloadedStrings #-}
 {-# Language ViewPatterns #-}
+{-# Language TupleSections #-}
 import Prelude hiding (Word)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -29,6 +30,7 @@ data Word = Word {word :: T.Text,
                   value :: Natural}
                   deriving Show
 
+
 -- Each leaf has an element of type a and a Natural n, where the likelihood of the a being chosen
 -- is n/(sum of n's for all leaves)
 -- For Words, n is max of all values of words - the value of this word
@@ -38,6 +40,7 @@ data Tree a =
   | Leaf a Natural
   deriving Show
 
+type RandomTree a = (Tree a, StdGen)
 
 data PlayState = Play | Stop
 
@@ -168,10 +171,13 @@ tShow :: Show a => a -> T.Text
 tShow = T.pack . show
 
 -- Returns a random word in a tree
-randomWord tree randGen = (quizWord, newGen)
+randomWord (tree, randGen) = (quizWord, (tree, newGen))
   where
     (index,newGen) = randomR (1, treeVal tree) randGen
     quizWord = pickWord tree $ index
+
+randomWords :: RandomTree Word -> NonEmpty Word
+randomWords randomTree = myIterate randomWord randomTree
 
 -- Returns a human-readable version of a Tree
 format :: Tree Word -> T.Text
@@ -207,21 +213,21 @@ getAnswers realGender = exitTest realGender
     correctnessTest realGender (Left _) =
       exitTest realGender
 
-playRound :: Word -> IO PlayState 
-playRound wordToGuess = do
+playRound :: RandomTree Word -> IO (Maybe (PlayState, RandomTree Word))
+playRound tree = do
+  let (wordToGuess, newTree) = randomWord tree
   TIO.putStrLn $ word wordToGuess
   playState <- getAnswers $ gender wordToGuess
   TIO.putStrLn ""
-  return playState
+  return $ case playState of
+    Stop -> Nothing
+    Play -> Just (playState, newTree)
 
-play :: NonEmpty Word -> NonEmpty (IO PlayState)
-play = fmap playRound 
+play :: RandomTree Word -> IO [PlayState]
+play = unfoldrM playRound 
 
 myIterate :: (b -> (a,b)) -> b -> NonEmpty a
 myIterate f x = fmap fst $ NE.iterate (\(a,b) -> f b) $ f x
-
-randomWords :: RandomGen g => g -> Tree Word -> NonEmpty Word
-randomWords stdGen tree = myIterate (randomWord tree) stdGen
 
 -- Makes an entire tree from raw input
 makeTree input = buildTree <$> leafify <$> parseInput input
@@ -244,6 +250,18 @@ mySequenceNE pred (a:|as) = do
     as2 <- mySequence pred as
     return (a2:|as2)
 
+-- Stolen from
+-- https://hackage.haskell.org/package/monad-loops-0.4.3/docs/src/Control-Monad-Loops.html#unfoldrM
+unfoldrM :: (Monad m) => (a -> m (Maybe (b,a))) -> a -> m [b]
+unfoldrM f = go
+    where go z = do
+            x <- f z
+            case x of
+                Nothing         -> return []
+                Just (x, z')    -> do
+                        xs <- go z'
+                        return (x:xs)
+
 shouldStop Stop = True
 shouldStop Play = False
 
@@ -253,8 +271,6 @@ main = do
   stdGen <- getStdGen
   let tree = makeTree fileText
   -- fmap (const ()) is to change the type from IO PlayState to IO () to match putStrLn
-  either TIO.putStrLn (fmap (const ()) . mySequenceNE shouldStop . play . randomWords stdGen) tree
-
-
+  either TIO.putStrLn (fmap (const ()) . play . (,stdGen)) tree
 
 right (Right a) = a
