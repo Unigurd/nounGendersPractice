@@ -1,6 +1,7 @@
 {-# Language OverloadedStrings #-}
 {-# Language ViewPatterns #-}
 {-# Language TupleSections #-}
+{-# Language ScopedTypeVariables #-}
 import Prelude hiding (Word)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -41,7 +42,6 @@ data Tree a =
 
 type RandomTree a = (Tree a, StdGen)
 
-data PlayState = Play | Stop
 
 -- Returns the topmost Natural of a tree.
 treeVal (Leaf _ val) = val
@@ -192,7 +192,7 @@ divf a b = floor (af / b)
     af = fromIntegral a
 
 -- I think I should look into lenses
-updateWord Success wordToUpdate = 
+updateWord True wordToUpdate = 
   case growth wordToUpdate of
     Lin ->
       Word {word   = word wordToUpdate,
@@ -213,7 +213,7 @@ updateWord Success wordToUpdate =
             growth = Exp n}
         where newVal = value wordToUpdate `divf` 1.5
 
-updateWord Failure wordToUpdate =
+updateWord False wordToUpdate =
   Word {word   = word wordToUpdate,
         gender = gender wordToUpdate,
         value  = newVal,
@@ -255,32 +255,47 @@ parseAnswer _ = Left "Did not understand answer"
 shouldContinue 'q' = False
 shouldContinue  n  = True
 
+getAnswers :: Gender -> IO (Maybe Bool)
 getAnswers realGender = exitTest realGender
   where 
     exitTest realGender = do
       rawAnswer <- getChar
       case rawAnswer of
-        'q' -> return Stop
+        'q' -> return Nothing
         _  -> correctnessTest realGender $ parseAnswer rawAnswer
 
     correctnessTest realGender (Right answer) =
       if answer == realGender
-      then return Play
-      else getAnswers realGender
+      then return $ return True
+      else do
+        maybeAnswer <- exitTest realGender
+        return $ do
+          answer <- maybeAnswer
+          return $ False && answer -- introduces non-tail recursiveness
     correctnessTest realGender (Left _) =
       exitTest realGender
 
-playRound :: RandomTree Word -> IO (Maybe (PlayState, RandomTree Word))
-playRound tree = do
-  let (wordToGuess, newTree) = randomWord tree
+playRound :: RandomTree Word -> IO (Maybe ((), RandomTree Word))
+playRound (tree, randGen) = do
+  let (index,newGen) = randomR (1, treeVal tree) randGen
+  let wordToGuess = pickWord tree index
   TIO.putStrLn $ word wordToGuess
-  playState <- getAnswers $ gender wordToGuess
+  (playState :: Maybe Bool) <- getAnswers $ gender wordToGuess
   TIO.putStrLn ""
-  return $ case playState of
-    Stop -> Nothing
-    Play -> Just (playState, newTree)
+  return $ do 
+    (isCorrectGuess :: Bool) <- playState
+    let newTree = updateTree isCorrectGuess tree index
+    return ((), (newTree, newGen))
 
-play :: RandomTree Word -> IO [PlayState]
+--  let a = do 
+--            isCorrectGuess <- playState
+--            let newTree = updateTree isCorrectGuess tree index
+--            return ((), (newTree, newGen))
+--  TIO.putStrLn $ tShow wordToGuess
+--  TIO.putStrLn $ tShow $ pickWord (fst $ snd $ just a) index
+--  return a
+
+play :: RandomTree Word -> IO [()]
 play = unfoldrM playRound 
 
 myIterate :: (b -> (a,b)) -> b -> NonEmpty a
@@ -319,8 +334,6 @@ unfoldrM f = go
                         xs <- go z'
                         return (x:xs)
 
-shouldStop Stop = True
-shouldStop Play = False
 
 -- Good ol' main :)
 main = do
@@ -330,5 +343,7 @@ main = do
   -- fmap (const ()) is to change the type from IO PlayState to IO () to match putStrLn
   either TIO.putStrLn (fmap (const ()) . play . (,stdGen)) tree
 
+just  (Just a)  = a
 right (Right a) = a
+
 sw = Word {word = "Brief", gender = Der, value = 50, growth = Exp 25}
