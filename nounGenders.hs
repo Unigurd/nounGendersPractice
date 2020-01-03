@@ -22,8 +22,7 @@ data Growth = Lin | Exp Natural deriving Show
 data Gender = Der | Die | Das deriving (Show, Eq)
 
 -- A word consist of the word itself, its gender, the manner in which the likelihood of the word grows,
--- and a value for which holds that the likelihood of the word being chosen decreases as the value increases.
--- This way we have a hard upper bound on the likelihood of the word being chosen
+-- and a value for which holds that the likelihood of the word being chosen increases as the value increases.
 data Word = Word {word :: T.Text,
                   gender :: Gender,
                   growth :: Growth,
@@ -125,10 +124,15 @@ parseInput input =
 
 -- Puts words into leaves, where the Natural in the leaves is the max value for any word - that particular word's value
 -- This negation is to make 0 an upper bound on likelihood instead of a lower
-leafify list = fmap (\x -> (Leaf x (maxVal list - value x + 1 ))) list
+-- leafify list = fmap (\x -> (Leaf x (maxVal list - value x + 1 ))) list
+leafify list = fmap (\x -> (Leaf x (value x + 1 ))) list
 
--- I don't like that maximum doesn't check non-emptyness statically
-maxVal = maximum . values
+-- I don't like that maximum raises an error on nonemptyness
+-- so myMaximum can only work on NonEmpty
+myMaximum :: Ord a => NonEmpty a -> a
+myMaximum = maximum
+
+maxVal = myMaximum . values
 
 -- Returns a NonEmpty of branches where the subtrees are pairs of trees in the originial NonEmpty.
 -- In the case of an odd length of the NonEmpty the last tree is included unchanged. 
@@ -178,6 +182,59 @@ randomWord (tree, randGen) = (quizWord, (tree, newGen))
 
 randomWords :: RandomTree Word -> NonEmpty Word
 randomWords randomTree = myIterate randomWord randomTree
+
+data Success = 
+    Success 
+  | Failure
+
+divf a b = floor (af / b)
+  where
+    af = fromIntegral a
+
+-- I think I should look into lenses
+updateWord Success wordToUpdate = 
+  case growth wordToUpdate of
+    Lin ->
+      Word {word   = word wordToUpdate,
+            gender = gender wordToUpdate,
+            value  = if value wordToUpdate == 0 then 0 else value wordToUpdate - 1,
+            growth = Lin}
+    Exp n ->
+      if newVal <= n
+      then Word 
+           {word   = word wordToUpdate,
+            gender = gender wordToUpdate,
+            value  = n,
+            growth = Lin}
+      else Word 
+           {word   = word wordToUpdate,
+            gender = gender wordToUpdate,
+            value  = newVal,
+            growth = Exp n}
+        where newVal = value wordToUpdate `divf` 1.5
+
+updateWord Failure wordToUpdate =
+  Word {word   = word wordToUpdate,
+        gender = gender wordToUpdate,
+        value  = newVal,
+        growth = Exp newN}
+    where
+      -- Adding 1 for the case where the value is zero
+      newN   = (value wordToUpdate + 1) * 2
+      newVal = (value wordToUpdate + 1)* 6
+
+-- n+1 because we want each word to have an index range of at least 1 so it can be found
+updateTree success (Leaf word n) _ = Leaf updatedWord (n + 1) 
+  where updatedWord = updateWord success word
+updateTree success (Branch left n right) searchVal =
+  if searchVal <= treeVal left
+  then Branch newLeft newLN right
+  else Branch left newRN newRight
+    where 
+      newLeft  = updateTree success left (searchVal)
+      newRight = updateTree success right (searchVal - treeVal left)
+      newLN    = treeVal newLeft + treeVal right
+      newRN    = treeVal left + treeVal newRight
 
 -- Returns a human-readable version of a Tree
 format :: Tree Word -> T.Text
@@ -274,3 +331,4 @@ main = do
   either TIO.putStrLn (fmap (const ()) . play . (,stdGen)) tree
 
 right (Right a) = a
+sw = Word {word = "Brief", gender = Der, value = 50, growth = Exp 25}

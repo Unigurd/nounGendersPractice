@@ -84,3 +84,7 @@ das problem
 die person
 der ort
 das pfand
+die faust
+die tür
+das tor
+die steuer
