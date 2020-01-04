@@ -214,14 +214,24 @@ updateWord True wordToUpdate =
         where newVal = value wordToUpdate `divf` 1.5
 
 updateWord False wordToUpdate =
-  Word {word   = word wordToUpdate,
-        gender = gender wordToUpdate,
-        value  = newVal,
-        growth = Exp newN}
-    where
-      -- Adding 1 for the case where the value is zero
-      newN   = (value wordToUpdate + 1) * 2
-      newVal = (value wordToUpdate + 1)* 6
+  case growth wordToUpdate of
+    Lin ->
+      Word {word   = word wordToUpdate,
+            gender = gender wordToUpdate,
+            value  = newVal,
+            growth = Exp newN}
+      where
+        -- Adding 1 for the case where the value is zero
+        newN   = (value wordToUpdate + 1) * 2
+        newVal = (value wordToUpdate + 1)* 6
+    Exp n -> 
+      Word {word   = word wordToUpdate,
+            gender = gender wordToUpdate,
+            value  = newVal,
+            growth = Exp n}
+      where
+        -- Adding 1 for the case where the value is zero
+        newVal = (value wordToUpdate + 1)* 6
 
 -- n+1 because we want each word to have an index range of at least 1 so it can be found
 updateTree success (Leaf word _) _ = Leaf updatedWord ((value updatedWord) + 1) 
