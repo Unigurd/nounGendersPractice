@@ -224,7 +224,7 @@ updateWord False wordToUpdate =
       newVal = (value wordToUpdate + 1)* 6
 
 -- n+1 because we want each word to have an index range of at least 1 so it can be found
-updateTree success (Leaf word n) _ = Leaf updatedWord (n + 1) 
+updateTree success (Leaf word _) _ = Leaf updatedWord ((value updatedWord) + 1) 
   where updatedWord = updateWord success word
 updateTree success (Branch left n right) searchVal =
   if searchVal <= treeVal left
@@ -291,8 +291,7 @@ playRound (tree, randGen) = do
 --            isCorrectGuess <- playState
 --            let newTree = updateTree isCorrectGuess tree index
 --            return ((), (newTree, newGen))
---  TIO.putStrLn $ tShow wordToGuess
---  TIO.putStrLn $ tShow $ pickWord (fst $ snd $ just a) index
+--  TIO.putStrLn $ format $ fst $ snd $ just a
 --  return a
 
 play :: RandomTree Word -> IO [()]
