@@ -2,6 +2,7 @@
 {-# Language ViewPatterns #-}
 {-# Language TupleSections #-}
 {-# Language ScopedTypeVariables #-}
+
 import Prelude hiding (Word)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -12,6 +13,7 @@ import Data.Function
 import System.Random
 import RandomNatural
 import Data.Char as C
+import System.IO as IO
 
 -- Specifies whether the likelihood of a word decreases linearly or exponentially when guessed correctly
 -- Inspired by TCP congestion control, whenever an error is made, the likelihood of that word
@@ -346,6 +348,8 @@ unfoldrM f = go
 
 -- Good ol' main :)
 main = do
+  IO.hSetBuffering stdin NoBuffering
+  IO.hSetBuffering stdout NoBuffering
   fileText <- TIO.readFile "data.txt"
   stdGen <- getStdGen
   let tree = makeTree fileText
