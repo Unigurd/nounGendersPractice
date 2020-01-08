@@ -1,4 +1,17 @@
 Das Mädchen
+der zoll
+das dach
+die umgebung
+die umwelt
+das milieu
+der ton
+die notiz
+der zettel
+der verdacht
+der kontakt
+der umgang
+die messung
+die brücke
 die absicht
 das system
 die anzahl
@@ -24,6 +37,7 @@ das maß
 die menge
 der tanz
 das risiko
+der neuling
 die ebene
 die stufe
 das niveau
@@ -142,6 +156,8 @@ Die Polizei
 Das Gesicht
 Das Publikum
 Die Woche
+der standard
+die recherche
 Der Eindruck
 der weg
 der unterschied
@@ -218,6 +234,7 @@ der käfer
 der gürtel
 der fluss
 der fluch
+das buch
 die klamotte
 das geschlecht
 das recht
@@ -452,3 +469,5 @@ der virus
 der zustand
 der stand
 der staat
+
+

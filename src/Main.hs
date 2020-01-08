@@ -14,6 +14,7 @@ import System.Random
 import RandomNatural
 import Data.Char as C
 import System.IO as IO
+import System.FilePath as FP
 
 -- Specifies whether the likelihood of a word decreases linearly or exponentially when guessed correctly
 -- Inspired by TCP congestion control, whenever an error is made, the likelihood of that word
@@ -350,7 +351,7 @@ unfoldrM f = go
 main = do
   IO.hSetBuffering stdin NoBuffering
   IO.hSetBuffering stdout NoBuffering
-  fileText <- TIO.readFile "data.txt"
+  fileText <- TIO.readFile ("assets" FP.</>"data.txt") -- can error
   stdGen <- getStdGen
   let tree = makeTree fileText
   -- fmap (const ()) is to change the type from IO PlayState to IO () to match putStrLn
