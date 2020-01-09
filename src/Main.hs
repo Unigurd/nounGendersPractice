@@ -1,21 +1,14 @@
 {-# Language OverloadedStrings #-}
 {-# Language ViewPatterns #-}
 {-# Language TupleSections #-}
-{-# Language ScopedTypeVariables #-}
 
 import Prelude hiding (Word)
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
-import Numeric.Natural
-import Text.Read
-import qualified Data.List.NonEmpty as NE
-import Data.Function
-import System.Random
-import RandomNatural
-import qualified Data.Char as C
-import qualified System.IO as IO
+import qualified Data.Text.IO    as TIO
+import qualified System.Random   as R
+import qualified Data.Char       as C
+import qualified System.IO       as IO
 import qualified System.FilePath as FP
-import Tree
+import qualified Tree            as TR
 
 just  (Just a)  = a
 right (Right a) = a
@@ -32,16 +25,12 @@ unfoldrM f = go
                         xs <- go z'
                         return (x:xs)
 
-
-
-
-
-parseAnswer (C.toLower -> 'j') = Right Der
-parseAnswer (C.toLower -> 'k') = Right Die
-parseAnswer (C.toLower -> 'l') = Right Das
+parseAnswer (C.toLower -> 'j') = Right TR.Der
+parseAnswer (C.toLower -> 'k') = Right TR.Die
+parseAnswer (C.toLower -> 'l') = Right TR.Das
 parseAnswer _ = Left "Did not understand answer"
 
-getAnswers :: Gender -> IO (Maybe Bool)
+getAnswers :: TR.Gender -> IO (Maybe Bool)
 getAnswers realGender = exitTest realGender
   where 
     exitTest realGender = do
@@ -61,16 +50,16 @@ getAnswers realGender = exitTest realGender
     correctnessTest realGender (Left _) =
       exitTest realGender
 
-playRound :: RandomTree Word -> IO (Maybe ((), RandomTree Word))
+playRound :: TR.RandomTree TR.Word -> IO (Maybe ((), TR.RandomTree TR.Word))
 playRound (tree, randGen) = do
-  let (index,newGen) = randomR (1, treeVal tree) randGen
-  let wordToGuess = pickWord tree index
-  TIO.putStrLn $ word wordToGuess
-  (playState :: Maybe Bool) <- getAnswers $ gender wordToGuess
+  let (index,newGen) = R.randomR (1, TR.treeVal tree) randGen
+  let wordToGuess = TR.pickWord tree index
+  TIO.putStrLn $ TR.word wordToGuess
+  playState <- getAnswers $ TR.gender wordToGuess
   TIO.putStrLn ""
   return $ do 
-    (isCorrectGuess :: Bool) <- playState
-    let newTree = updateTree isCorrectGuess tree index
+    isCorrectGuess <- playState
+    let newTree = TR.updateTree isCorrectGuess tree index
     return ((), (newTree, newGen))
 
 --  let a = do 
@@ -80,7 +69,7 @@ playRound (tree, randGen) = do
 --  TIO.putStrLn $ format $ fst $ snd $ just a
 --  return a
 
-play :: RandomTree Word -> IO [()]
+play :: TR.RandomTree TR.Word -> IO [()]
 play = unfoldrM playRound 
 
 
@@ -89,10 +78,10 @@ main = do
   IO.hSetBuffering IO.stdin  IO.NoBuffering
   IO.hSetBuffering IO.stdout IO.NoBuffering
   fileText <- TIO.readFile ("assets" FP.</> "data.txt") -- can error
-  stdGen <- getStdGen
-  let tree = makeTree fileText
+  stdGen <- R.getStdGen
+  let tree = TR.makeTree fileText
   -- fmap (const ()) is to change the type from IO PlayState to IO () to match putStrLn
   either TIO.putStrLn (fmap (const ()) . play . (,stdGen)) tree
 
 
-sw = Word {word = "Brief", gender = Der, value = 50, growth = Exp 25}
+--sw = Word {word = "Brief", gender = Der, value = 50, growth = Exp 25}
