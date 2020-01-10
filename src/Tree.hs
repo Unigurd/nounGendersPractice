@@ -12,14 +12,7 @@ import Data.List.NonEmpty           as NE
   (NonEmpty((:|)), nonEmpty, cons, init, last)
 import System.Random (StdGen, randomR, getStdGen)
 import Data.Char (toUpper)
-
-divf a b = floor (af / b)
-  where
-    af = fromIntegral a
-
--- Shows a Text instead of a String
-tShow :: Show a => a -> T.Text
-tShow = T.pack . show
+import Misc (divf, tShow)
 
 -- Specifies whether the likelihood of a word decreases linearly or exponentially when guessed correctly
 -- Inspired by TCP congestion control, whenever an error is made, the likelihood of that word

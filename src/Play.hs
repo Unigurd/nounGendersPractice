@@ -7,22 +7,11 @@ import qualified Data.Text.IO    as TIO
 import System.Random (randomR)
 import Prelude hiding (Word)
 import Data.Char (toLower)
+import Misc (unfoldrM)
 import Tree
   (RandomTree, treeVal, updateTree,
   Word, word, pickWord, 
   Gender(Der, Die, Das), gender)
-
--- Stolen from
--- https://hackage.haskell.org/package/monad-loops-0.4.3/docs/src/Control-Monad-Loops.html#unfoldrM
-unfoldrM :: (Monad m) => (a -> m (Maybe (b,a))) -> a -> m [b]
-unfoldrM f = go
-    where go z = do
-            x <- f z
-            case x of
-                Nothing         -> return []
-                Just (x, z')    -> do
-                        xs <- go z'
-                        return (x:xs)
 
 parseAnswer (toLower -> 'j') = Right Der
 parseAnswer (toLower -> 'k') = Right Die
