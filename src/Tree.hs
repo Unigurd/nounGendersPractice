@@ -5,12 +5,13 @@ module Tree where
 
 import Prelude hiding (Word)
 import qualified Data.Text          as T
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Char          as C
 import qualified Numeric.Natural    as N
-import qualified System.Random      as R
 import qualified Text.Read          as TR
 import qualified RandomNatural      as RN
+import Data.List.NonEmpty           as NE 
+  (NonEmpty((:|)), nonEmpty, cons, init, last)
+import System.Random (StdGen, randomR, getStdGen)
+import Data.Char (toUpper)
 
 divf a b = floor (af / b)
   where
@@ -47,7 +48,7 @@ data Tree a =
   | Leaf a N.Natural
   deriving Show
 
-type RandomTree a = (Tree a, R.StdGen)
+type RandomTree a = (Tree a, StdGen)
 
 
 -- Returns the topmost Natural of a tree.
@@ -68,13 +69,13 @@ parseGrowth errMsg str = (return . Exp) =<< tReadEither errMsg str
 
 -- Removes empty inner lists from a list of lists,
 -- returning a list of NonEmpty's
-removeEmpties = foldr (\elm acc -> case (NE.nonEmpty elm) of 
+removeEmpties = foldr (\elm acc -> case (nonEmpty elm) of 
                                      Just nonEmptyElm -> nonEmptyElm:acc 
                                      Nothing          -> acc) 
                       []
 
 -- Uppercases the first character of a string if non-empty
-upperFirst (T.uncons -> Just (first, rest)) = (C.toUpper first) `T.cons` rest
+upperFirst (T.uncons -> Just (first, rest)) = (toUpper first) `T.cons` rest
 upperFirst emptyStr                         = emptyStr
 
 -- Returns the string with the first char uppercase and the rest lower.
@@ -91,8 +92,8 @@ parseGender _ (T.toLower -> "die") = Right Die
 parseGender _ (T.toLower -> "das") = Right Das
 parseGender errMsg otherGender = Left (errMsg `T.append` otherGender)
 
-nonEmptyEither _      (NE.nonEmpty -> Just nonE) = Right nonE
-nonEmptyEither errMsg (NE.nonEmpty -> Nothing)   = Left errMsg
+nonEmptyEither _      (nonEmpty -> Just nonE) = Right nonE
+nonEmptyEither errMsg (nonEmpty -> Nothing)   = Left errMsg
 
 -- Little ugly function to ease >>= in parseWord
 createWord word value growth gender = 
@@ -102,14 +103,14 @@ createWord word value growth gender =
 -- Handles different amounts of information given.
 --
 -- Only gender and word given
-parseWord (genderStr NE.:| [word]) = (createWord (capitalizeWord word) 0 Lin) <$> parseGender "Parse error in file: invalid gender: " genderStr
+parseWord (genderStr :| [word]) = (createWord (capitalizeWord word) 0 Lin) <$> parseGender "Parse error in file: invalid gender: " genderStr
 -- Gender, word and value given
-parseWord (genderStr NE.:| [word, valueStr]) = do
+parseWord (genderStr :| [word, valueStr]) = do
   gender <- parseGender "Parse error in file: invalid gender: " genderStr 
   value  <- tReadEither ("Parse error in file: invalid value number: " `T.append` valueStr) valueStr
   return $ createWord (capitalizeWord word) value Lin gender
 -- Everything given
-parseWord (genderStr NE.:| [word, valueStr, growthStr]) = do
+parseWord (genderStr :| [word, valueStr, growthStr]) = do
   gender <- parseGender "Parse error in file: invalid gender: " genderStr 
   value  <- tReadEither ("Parse error in file: invalid value number: "  `T.append` valueStr) valueStr
   growth <- parseGrowth ("Parse error in file: invalid growth number: " `T.append` growthStr) growthStr
@@ -119,7 +120,7 @@ parseWord _ = Left "Parse error in file: Haven't bothered to write good enough e
 
 -- Parses raw Text input into a NonEmpty of Words (if possible),
 -- so it doesn't impose the tree structure
-parseInput :: T.Text -> Either T.Text (NE.NonEmpty Word)
+parseInput :: T.Text -> Either T.Text (NonEmpty Word)
 parseInput input = 
   traverse parseWord 
              =<< (nonEmptyEither "Data file was empty"  
@@ -136,22 +137,22 @@ leafify list = fmap (\x -> (Leaf x (value x + 1 ))) list
 
 -- I don't like that maximum raises an error on nonemptyness
 -- so myMaximum can only work on NonEmpty
-myMaximum :: Ord a => NE.NonEmpty a -> a
+myMaximum :: Ord a => NonEmpty a -> a
 myMaximum = maximum
 
 maxVal = myMaximum . values
 
 -- Returns a NonEmpty of branches where the subtrees are pairs of trees in the originial NonEmpty.
 -- In the case of an odd length of the NonEmpty the last tree is included unchanged. 
-pairUp :: NE.NonEmpty (Tree Word) -> NE.NonEmpty (Tree Word)
-pairUp (a NE.:| [b]) = (Branch a ((treeVal a) + (treeVal b)) b) NE.:| []
-pairUp (a NE.:| (b:restHead:restTail)) = 
-  (Branch a ((treeVal a) + (treeVal b)) b) `NE.cons` (pairUp (restHead NE.:| restTail))
-pairUp (a NE.:| [])        = a NE.:| []
+pairUp :: NonEmpty (Tree Word) -> NonEmpty (Tree Word)
+pairUp (a :| [b]) = (Branch a ((treeVal a) + (treeVal b)) b) :| []
+pairUp (a :| (b:restHead:restTail)) = 
+  (Branch a ((treeVal a) + (treeVal b)) b) `cons` (pairUp (restHead :| restTail))
+pairUp (a :| [])        = a :| []
 
 -- Rotates a list so the last element becomes the first.
-rotate :: NE.NonEmpty a -> NE.NonEmpty a
-rotate list = (NE.last list) NE.:| (NE.init list)
+rotate :: NonEmpty a -> NonEmpty a
+rotate list = (NE.last list) :| (NE.init list)
 
 -- Builds a single tree out of a NonEmpty of trees.
 -- Rotate makes sure that no single leaf  can become the right child of the root
@@ -159,8 +160,8 @@ rotate list = (NE.last list) NE.:| (NE.init list)
 -- Otherwise the following could happen:
 -- For example, (a b c d e) ->> (ab cd e) ->> (abcd e)
 -- Has a bad name that will likely be changed
-buildTree :: NE.NonEmpty (Tree Word) -> Tree Word
-buildTree (result NE.:| []) = result
+buildTree :: NonEmpty (Tree Word) -> Tree Word
+buildTree (result :| []) = result
 buildTree list         = buildTree $ rotate $ pairUp list
 
 -- maps a functor of words to a functor of the values of those words
@@ -180,7 +181,7 @@ pickWord (Branch left _ right) searchVal =
 -- Returns a random word in a tree
 randomWord (tree, randGen) = (quizWord, (tree, newGen))
   where
-    (index,newGen) = R.randomR (1, treeVal tree) randGen
+    (index,newGen) = randomR (1, treeVal tree) randGen
     quizWord = pickWord tree $ index
 
 -- I think I should look into lenses
