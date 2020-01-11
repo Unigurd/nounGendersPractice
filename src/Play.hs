@@ -19,6 +19,8 @@ parseAnswer (toLower -> 'l') = Right Das
 parseAnswer _ = Left "Did not understand answer"
 
 
+
+-- Gets answers until correct or 'q'
 getAnswers :: Gender -> IO (Maybe Bool)
 getAnswers realGender = exitTest realGender
   where 
@@ -50,13 +52,6 @@ playRound (tree, randGen) = do
     isCorrectGuess <- playState
     let newTree = updateTree isCorrectGuess tree index
     return ((), (newTree, newGen))
-
---  let a = do 
---            isCorrectGuess <- playState
---            let newTree = updateTree isCorrectGuess tree index
---            return ((), (newTree, newGen))
---  TIO.putStrLn $ format $ fst $ snd $ just a
---  return a
 
 play :: RandomTree Word -> IO [()]
 play = unfoldrM playRound 
