@@ -8,7 +8,7 @@ import qualified Data.Text          as T
 import qualified Numeric.Natural    as N
 import qualified Text.Read          as TR
 import qualified RandomNatural      as RN
-import Data.List.NonEmpty           as NE 
+import Data.List.NonEmpty           as NE
   (NonEmpty((:|)), nonEmpty, cons, init, last)
 import System.Random (StdGen, randomR, getStdGen)
 import Data.Char (toUpper)
@@ -36,7 +36,7 @@ data Word = Word {word :: T.Text,
 -- is n/(sum of n's for all leaves)
 -- For Words, n is max of all values of words - the value of this word
 -- Each branch has a Natural n which should be the sum of n's in each of the subtrees.
-data Tree a = 
+data Tree a =
   Branch (Tree a) N.Natural (Tree a)
   | Leaf a N.Natural
   deriving Show
@@ -62,9 +62,9 @@ parseGrowth errMsg str = (return . Exp) =<< tReadEither errMsg str
 
 -- Removes empty inner lists from a list of lists,
 -- returning a list of NonEmpty's
-removeEmpties = foldr (\elm acc -> case (nonEmpty elm) of 
-                                     Just nonEmptyElm -> nonEmptyElm:acc 
-                                     Nothing          -> acc) 
+removeEmpties = foldr (\elm acc -> case (nonEmpty elm) of
+                                     Just nonEmptyElm -> nonEmptyElm:acc
+                                     Nothing          -> acc)
                       []
 
 -- Uppercases the first character of a string if non-empty
@@ -89,7 +89,7 @@ nonEmptyEither _      (nonEmpty -> Just nonE) = Right nonE
 nonEmptyEither errMsg (nonEmpty -> Nothing)   = Left errMsg
 
 -- Little ugly function to ease >>= in parseWord
-createWord word value growth gender = 
+createWord word value growth gender =
   Word {word=word, gender=gender, value=value, growth=growth}
 
 -- parses everything needed for a Word
@@ -99,12 +99,12 @@ createWord word value growth gender =
 parseWord (genderStr :| [word]) = (createWord (capitalizeWord word) 0 Lin) <$> parseGender "Parse error in file: invalid gender: " genderStr
 -- Gender, word and value given
 parseWord (genderStr :| [word, valueStr]) = do
-  gender <- parseGender "Parse error in file: invalid gender: " genderStr 
+  gender <- parseGender "Parse error in file: invalid gender: " genderStr
   value  <- tReadEither ("Parse error in file: invalid value number: " `T.append` valueStr) valueStr
   return $ createWord (capitalizeWord word) value Lin gender
 -- Everything given
 parseWord (genderStr :| [word, valueStr, growthStr]) = do
-  gender <- parseGender "Parse error in file: invalid gender: " genderStr 
+  gender <- parseGender "Parse error in file: invalid gender: " genderStr
   value  <- tReadEither ("Parse error in file: invalid value number: "  `T.append` valueStr) valueStr
   growth <- parseGrowth ("Parse error in file: invalid growth number: " `T.append` growthStr) growthStr
   return $ createWord (capitalizeWord word) value growth gender
@@ -114,12 +114,12 @@ parseWord _ = Left "Parse error in file: Haven't bothered to write good enough e
 -- Parses raw Text input into a NonEmpty of Words (if possible),
 -- so it doesn't impose the tree structure
 parseInput :: T.Text -> Either T.Text (NonEmpty Word)
-parseInput input = 
-  traverse parseWord 
-             =<< (nonEmptyEither "Data file was empty"  
-              $ removeEmpties 
-              $ removeComments 
-             <$> T.words 
+parseInput input =
+  traverse parseWord
+             =<< (nonEmptyEither "Data file was empty"
+              $ removeEmpties
+              $ removeComments
+             <$> T.words
              <$> (T.lines input))
 
 
@@ -136,10 +136,10 @@ myMaximum = maximum
 maxVal = myMaximum . values
 
 -- Returns a NonEmpty of branches where the subtrees are pairs of trees in the originial NonEmpty.
--- In the case of an odd length of the NonEmpty the last tree is included unchanged. 
+-- In the case of an odd length of the NonEmpty the last tree is included unchanged.
 pairUp :: NonEmpty (Tree Word) -> NonEmpty (Tree Word)
 pairUp (a :| [b]) = (Branch a ((treeVal a) + (treeVal b)) b) :| []
-pairUp (a :| (b:restHead:restTail)) = 
+pairUp (a :| (b:restHead:restTail)) =
   (Branch a ((treeVal a) + (treeVal b)) b) `cons` (pairUp (restHead :| restTail))
 pairUp (a :| [])        = a :| []
 
@@ -178,7 +178,7 @@ randomWord (tree, randGen) = (quizWord, (tree, newGen))
     quizWord = pickWord tree $ index
 
 -- I think I should look into lenses
-updateWord True wordToUpdate = 
+updateWord True wordToUpdate =
   case growth wordToUpdate of
     Lin ->
       Word {word   = word wordToUpdate,
@@ -187,12 +187,12 @@ updateWord True wordToUpdate =
             growth = Lin}
     Exp n ->
       if newVal <= n
-      then Word 
+      then Word
            {word   = word wordToUpdate,
             gender = gender wordToUpdate,
             value  = n,
             growth = Lin}
-      else Word 
+      else Word
            {word   = word wordToUpdate,
             gender = gender wordToUpdate,
             value  = newVal,
@@ -210,7 +210,7 @@ updateWord False wordToUpdate =
         -- Adding 1 for the case where the value is zero
         newN   = (value wordToUpdate + 1) * 2
         newVal = (value wordToUpdate + 1)* 6
-    Exp n -> 
+    Exp n ->
       Word {word   = word wordToUpdate,
             gender = gender wordToUpdate,
             value  = newVal,
@@ -220,13 +220,13 @@ updateWord False wordToUpdate =
         newVal = (value wordToUpdate + 1)* 6
 
 -- n+1 because we want each word to have an index range of at least 1 so it can be found
-updateTree success (Leaf word _) _ = Leaf updatedWord ((value updatedWord) + 1) 
+updateTree success (Leaf word _) _ = Leaf updatedWord ((value updatedWord) + 1)
   where updatedWord = updateWord success word
 updateTree success (Branch left n right) searchVal =
   if searchVal <= treeVal left
   then Branch newLeft newLN right
   else Branch left newRN newRight
-    where 
+    where
       newLeft  = updateTree success left (searchVal)
       newRight = updateTree success right (searchVal - treeVal left)
       newLN    = treeVal newLeft + treeVal right
@@ -236,8 +236,8 @@ updateTree success (Branch left n right) searchVal =
 format :: Tree Word -> T.Text
 format = T.unlines . help ""
   where
-    help spaces (Branch l n r) = 
-      spaces `T.append` (tShow n) 
+    help spaces (Branch l n r) =
+      spaces `T.append` (tShow n)
              : ((help newSpaces l) ++ (help newSpaces r))
         where newSpaces = T.cons ' ' spaces
     help spaces (Leaf w n) =

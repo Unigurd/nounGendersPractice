@@ -3,14 +3,14 @@
 
 module Play where
 
-import qualified Data.Text.IO    as TIO
+import qualified Data.Text.IO as TIO
 import System.Random (randomR)
 import Prelude hiding (Word)
 import Data.Char (toLower)
 import Misc (unfoldrM)
 import Tree
   (RandomTree, treeVal, updateTree,
-  Word, word, pickWord, 
+  Word, word, pickWord,
   Gender(Der, Die, Das), gender)
 
 parseAnswer (toLower -> 'j') = Right Der
@@ -23,7 +23,7 @@ parseAnswer _ = Left "Did not understand answer"
 -- Gets answers until correct or 'q'
 getAnswers :: Gender -> IO (Maybe Bool)
 getAnswers realGender = exitTest realGender
-  where 
+  where
     exitTest realGender = do
       rawAnswer <- getChar
       case rawAnswer of
@@ -48,10 +48,10 @@ playRound (tree, randGen) = do
   TIO.putStrLn $ word wordToGuess
   playState <- getAnswers $ gender wordToGuess
   TIO.putStrLn ""
-  return $ do 
+  return $ do
     isCorrectGuess <- playState
     let newTree = updateTree isCorrectGuess tree index
     return ((), (newTree, newGen))
 
 play :: RandomTree Word -> IO [()]
-play = unfoldrM playRound 
+play = unfoldrM playRound
