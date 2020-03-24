@@ -1,4 +1,22 @@
-Das Mädchen
+Das mädchen
+die benotung
+das projekt
+der planet
+das wesen
+die stirn
+das pflaster
+der verband
+das fieber
+die grippe
+die gehirnerschütterung
+das abonnement
+die batterie
+der akkumulator
+das geheimnis
+der furz
+der pups
+das zitat
+der geist
 der kram
 das zeug
 der bock
@@ -73,6 +91,7 @@ das risiko
 der neuling
 die ebene
 die stufe
+die schicht
 das niveau
 der stock
 das geschoss
@@ -502,5 +521,3 @@ der virus
 der zustand
 der stand
 der staat
-
-
